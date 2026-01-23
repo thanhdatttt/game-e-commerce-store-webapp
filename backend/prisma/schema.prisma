@@ -19,9 +19,53 @@ enum userRole {
   admin
 }
 
+enum gameStatus {
+  active
+  inactive
+  comingsoon
+}
+
+enum imageType {
+  gallery
+  cover
+  thumbnail
+}
+
+enum requirementType {
+  minimum
+  recommended
+}
+
+enum cartStatus {
+  active
+  checkedout
+  abandoned
+}
+
+enum orderStatus {
+  pending     // vừa tạo từ cart
+  paid        // thanh toán thành công
+  canceled
+  refunded
+}
+
+enum paymentMethod {
+  cod
+  momo
+  zalopay
+  stripe
+  paypal
+}
+
+enum paymentStatus {
+  pending
+  success
+  failed
+}
+
 // models
 model users {
-  id              Int     @id @default(autoincrement())
+  id              String  @id @default(uuid()) @db.Uuid
   username        String  @unique
   email           String  @unique
   hashedPassword  String
@@ -35,4 +79,256 @@ model users {
 
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
+
+  carts carts[]
+  orders orders[]
+  reviews reviews[]
+  ownedGames ownedGames[]
+}
+
+model games {
+  id              String     @id @default(uuid()) @db.Uuid
+  name            String
+  slug            String     @unique
+  description     String?
+
+  price           Decimal    @db.Decimal(10, 2)
+  discountPrice   Decimal?   @db.Decimal(10, 2)
+
+  developer       String?
+  publisher       String?
+  releaseDate     DateTime
+  status          gameStatus @default(active)
+
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  gameImages      gameImages[]
+  gameRequirements gameRequirements[]
+  gameGenres gameGenres[]
+  cartItems cartItems[]
+  orderItems orderItems[]
+  reviews reviews[]
+  gameStats gameStats[]
+  saleGames saleGames[]
+  ownedGames ownedGames[]
+}
+
+model gameImages {
+  id        String   @id @default(uuid()) @db.Uuid
+  gameId    String   @db.Uuid
+
+  url       String
+  type      imageType @default(gallery)
+  position  Int?
+
+  createdAt DateTime @default(now())
+
+  // Relations
+  game      games    @relation(fields: [gameId], references: [id], onDelete: Cascade)
+
+  @@index([gameId])
+}
+
+model gameRequirements {
+  id        String          @id @default(uuid()) @db.Uuid
+  gameId    String          @db.Uuid
+
+  type      requirementType
+  os        String
+  cpu       String
+  gpu       String
+  ram       String
+  storage   String
+
+  createdAt DateTime        @default(now())
+
+  // Relations
+  game games @relation(fields: [gameId], references: [id], onDelete: Cascade)
+
+  @@unique([gameId, type])
+}
+
+model genres {
+  id        String   @id @default(uuid()) @db.Uuid
+  name      String
+  slug      String   @unique
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  gameGenres gameGenres[]
+}
+
+model gameGenres {
+  gameId  String @db.Uuid
+  genreId String @db.Uuid
+
+  // Relations
+  game    games  @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  genre   genres @relation(fields: [genreId], references: [id], onDelete: Cascade)
+
+  @@id([gameId, genreId])
+}
+
+model carts {
+  id        String     @id @default(uuid()) @db.Uuid
+  userId    String     @db.Uuid
+  status    cartStatus @default(active)
+
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  cartItems cartItems[]
+
+  // relations
+  user      users      @relation(fields: [userId], references: [id], onDelete: Cascade) 
+
+  @@index([userId])
+}
+
+model cartItems {
+  id          String   @id @default(uuid()) @db.Uuid
+  cartId      String   @db.Uuid
+  gameId      String   @db.Uuid
+
+  priceAtTime Decimal  @db.Decimal(10, 2)
+
+  createdAt   DateTime @default(now())
+  
+  // Relations
+  cart carts @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  game games @relation(fields: [gameId], references: [id])
+
+  @@unique([cartId, gameId])
+}
+
+model orders {
+  id          String       @id @default(uuid()) @db.Uuid
+  userId      String       @db.Uuid
+
+  totalAmount Decimal      @db.Decimal(10, 2)
+  status      orderStatus  @default(pending)
+
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  orderItems orderItems[]
+  payments payments[]
+  ownedGames ownedGames[]
+
+  // Relations
+  user        users         @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+}
+
+model orderItems {
+  id        String   @id @default(uuid()) @db.Uuid
+  orderId   String   @db.Uuid
+  gameId    String   @db.Uuid
+
+  price     Decimal  @db.Decimal(10, 2)
+
+  createdAt DateTime @default(now())
+
+  // Relations
+  order orders @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  game  games  @relation(fields: [gameId], references: [id])
+
+  @@unique([orderId, gameId])
+}
+
+model reviews {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @db.Uuid
+  gameId    String   @db.Uuid
+
+  gameplay  Int
+  story     Int
+  music     Int
+  graphic   Int
+  overall   Int
+  comment   String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  user users @relation(fields: [userId], references: [id], onDelete: Cascade)
+  game games @relation(fields: [gameId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, gameId])
+  @@index([gameId])
+}
+
+model gameStats {
+  gameId         String   @id @db.Uuid
+
+  totalSales     Int      @default(0)
+  reviewCount    Int      @default(0)
+  averageOverall Decimal? @db.Decimal(3, 2)
+
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  game games @relation(fields: [gameId], references: [id], onDelete: Cascade)
+}
+
+model payments {
+  id        String        @id @default(uuid()) @db.Uuid
+  orderId   String        @db.Uuid
+
+  method    paymentMethod
+  status    paymentStatus
+
+  amount    Decimal       @db.Decimal(10, 2)
+  paidAt    DateTime?
+
+  createdAt DateTime      @default(now())
+
+  // Relations
+  order orders @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@unique([orderId])
+}
+
+model sales {
+  id         String   @id @default(uuid()) @db.Uuid
+  name       String
+  percentage Int
+
+  startDate  DateTime
+  endDate    DateTime
+
+  isActive   Boolean  @default(true)
+
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  saleGames saleGames[]
+}
+
+model saleGames {
+  saleId String @db.Uuid
+  gameId String @db.Uuid
+
+  sale sales @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  game games @relation(fields: [gameId], references: [id], onDelete: Cascade)
+
+  @@id([saleId, gameId])
+}
+
+model ownedGames {
+  userId      String   @db.Uuid
+  gameId      String   @db.Uuid
+  orderId     String   @db.Uuid
+
+  purchasedAt DateTime @default(now())
+
+  user users @relation(fields: [userId], references: [id])
+  game games @relation(fields: [gameId], references: [id])
+  order orders @relation(fields: [orderId], references: [id])
+
+  @@id([userId, gameId])
 }
