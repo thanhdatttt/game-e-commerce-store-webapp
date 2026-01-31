@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from "express";
 import { auth } from "../lib/auth";
+import prisma from "../lib/prisma";
 import { createResponse } from "../utils/response";
 
 export const protect = async (
@@ -17,8 +18,13 @@ export const protect = async (
                 createResponse({ message: "Unauthorized" , error: "Invalid or expired token"})
             );
         }
-
-        req.user = session.user;
+        
+        const user = await prisma.user.findUnique({
+            where: {
+                id: session.user.id,
+            }
+        });
+        req.user = user;
         req.session = session.session;
         next();
     } catch (err: any) {
